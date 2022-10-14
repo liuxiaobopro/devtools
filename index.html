@@ -20,8 +20,7 @@
             <div class="head">
                 <!-- 多选 -->
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="json" name="tags"
-                        checked>
+                    <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="json" name="tags">
                     <label class="form-check-label" for="inlineCheckbox1"> json </label>
                 </div>
                 <div class="form-check form-check-inline">
@@ -73,8 +72,6 @@
         // 获取sql
         function getSql(sql) {
             var psql = parseSql2Struct(sql);
-            console.log("psql:", psql);
-
             setTimeout(() => {
                 $('.r-text textarea').val(psql);
             }, 30);
@@ -146,12 +143,14 @@
             // 创建sql对象
             var sqlObj = {};
             sqlObj.tableName = tableName;
-            sqlObj.tableComment = sqlArr[sqlArr.length - 1].match(/COMMENT='(.*)'/)[1];
+            sqlObj.tableComment = sqlArr[sqlArr.length - 1].match(/COMMENT='(.*)'/) == null ? '' : sqlArr[sqlArr.length - 1].match(/COMMENT='(.*)'/)[1];
             sqlObj.tableField = [];
+            sqlObj.primary = [];
             // 获取字段
             var field = sqlArr.slice(1, sqlArr.length - 1);
             for (var i = 0; i < field.length; i++) {
                 var fieldObj = {};
+                var primary = {};
                 // 去除field[i]两侧的空格
                 field[i] = field[i].trim();
                 // 判断是否以`开头
@@ -178,21 +177,25 @@
                     if (fieldObj.fieldLength) {
                         fieldObj.fieldLength = fieldObj.fieldLength[1];
                     }
+                    sqlObj.tableField.push(fieldObj);
                 } else {
                     // 非字段信息
-                    continue;
+
+                    // 判断主键
+                    var pk = field[i].match(/PRIMARY\sKEY\s\((.*)\)/)[1];
+                    // 去掉`
+                    pk = pk.replace(/`/g, '');
+                    sqlObj.primary.push(pk);
                 }
 
-                sqlObj.tableField.push(fieldObj);
             }
-
-            debugger
             return sqlObj;
         }
 
         // 解析sql到带有tag的golang结构体
         function parseSql2Struct(sql) {
             var sqlObj = parseSql(sql);
+            console.log("sqlObj:", sqlObj);
             var structStr = "type " + sqlObj.tableName + " struct {\n";
             for (var i = 0; i < sqlObj.tableField.length; i++) {
                 var field = sqlObj.tableField[i];
@@ -203,7 +206,8 @@
                 fieldName = fieldName.replace(fieldName[0], fieldName[0].toUpperCase());
                 structStr += "\t" + fieldName + "\t";
                 // 字段类型, 获取第一个空格前的内容
-                structStr += getType(field.fieldType.split(' ')[0]) + "\t";
+                var fieldType = getType(field.fieldType.split(' ')[0])
+                structStr += fieldType + "\t";
                 structStr += "`";
 
                 if (tags.indexOf('json') != -1) {
@@ -212,9 +216,38 @@
                 }
                 if (tags.indexOf('xorm') != -1) {
                     // tag: xorm
-                    structStr += "xorm:" + "\"" + field.fieldType + "\" ";
+                    var context = '';
+                    // 判断 field.fieldName 是否在sqlObj.primary
+                    if (sqlObj.primary.indexOf(field.fieldName) != -1) {
+                        context += "pk ";
+                    }
+                    if (field.fieldAuto) {
+                        context += "autoincr ";
+                    }
+                    if (field.fieldNull) {
+                        context += "not null ";
+                    }
+                    if (field.fieldDefault) {
+                        switch (fieldType) {
+                            case 'int':
+                            case 'int8':
+                            case 'int16':
+                            case 'int32':
+                            case 'int64':
+                            case 'float32':
+                            case 'float64':
+                                context += "default " + field.fieldDefault + " ";
+                                break;
+                            default:
+                                context += "default '" + field.fieldDefault + "' ";
+                                break;
+                        }
+                    }
+                    if (field.fieldComment) {
+                        context += "comment('" + field.fieldComment + "') ";
+                    }
+                    structStr += "xorm:" + "\"" + context + "\" ";
                 }
-
 
                 // 删除structStr最后一个空格
                 structStr = structStr.substring(0, structStr.length - 1);
