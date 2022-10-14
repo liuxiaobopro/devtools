@@ -15,25 +15,27 @@
 </head>
 
 <body>
-    <div class="main d-flex justify-content-between align-content-center h-100">
+    <div class="main d-flex align-content-center h-100">
         <div class="ss l-text">
             <div class="head">
-                <!-- 多选 -->
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="json" name="tags">
-                    <label class="form-check-label" for="inlineCheckbox1"> json </label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="inlineCheckbox2" value="xorm" name="tags"
-                        checked>
-                    <label class="form-check-label" for="inlineCheckbox2"> xorm </label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="gorm" name="tags">
-                    <label class="form-check-label" for="inlineCheckbox3"> gorm </label>
-                </div>
             </div>
             <textarea name="" id="" placeholder="请输入mysql建表语句"></textarea>
+        </div>
+        <div class="ss tags">
+            <div class="head">
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="json" name="tags">
+                <label class="form-check-label" for="inlineCheckbox1"> json </label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="inlineCheckbox2" value="xorm" name="tags" checked>
+                <label class="form-check-label" for="inlineCheckbox2"> xorm </label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="gorm" name="tags">
+                <label class="form-check-label" for="inlineCheckbox3"> gorm </label>
+            </div>
         </div>
         <div class="ss r-text">
             <div class="head">
@@ -118,7 +120,7 @@
             var tableName = getStr(sqlArr[0]);
 
             if (!tableName) {
-                alert('请输入正确的建表语句');
+                // alert('请输入正确的建表语句');
                 // 清空所有textarea
                 $('textarea').val('');
                 return;
