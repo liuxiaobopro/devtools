@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sql2Struct</title>
+
+    <link rel="stylesheet" href="css/default.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/index.css">
+
+    <script src="js/jquery.min.js"></script>
+</head>
+
+<body>
+    <div class="main d-flex justify-content-between align-content-center h-100">
+        <div class="ss l-text">
+            <div class="head">
+                <!-- 多选 -->
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="json" name="tags"
+                        checked>
+                    <label class="form-check-label" for="inlineCheckbox1"> json </label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="inlineCheckbox2" value="xorm" name="tags"
+                        checked>
+                    <label class="form-check-label" for="inlineCheckbox2"> xorm </label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="gorm" name="tags">
+                    <label class="form-check-label" for="inlineCheckbox3"> gorm </label>
+                </div>
+            </div>
+            <textarea name="" id="" placeholder="请输入mysql建表语句"></textarea>
+        </div>
+        <div class="ss r-text">
+            <div class="head">
+            </div>
+            <textarea name="" id="" placeholder="解析好的struct自动展示到这里"></textarea>
+        </div>
+    </div>
+</body>
+
+<script>
+    $(function () {
+        // 获取tags
+        var tags = [];
+        $("input[name='tags']").each(function () {
+            if ($(this).is(":checked")) {
+                tags.push($(this).val());
+            }
+        });
+
+        // 监听tag变化
+        $("input[name='tags']").change(function () {
+            tags = []
+            $("input[name='tags']").each(function () {
+                if ($(this).is(":checked")) {
+                    tags.push($(this).val());
+                }
+            });
+            getSql($('.l-text textarea').val())
+        });
+
+        // 监听左侧输入框
+        $('.l-text textarea').on('input', function () {
+            getSql($(this).val())
+        })
+
+        // 获取sql
+        function getSql(sql) {
+            var psql = parseSql2Struct(sql);
+            console.log("psql:", psql);
+
+            setTimeout(() => {
+                $('.r-text textarea').val(psql);
+            }, 30);
+        }
+
+        // 获取两个`之间的内容
+        function getStr(str) {
+            return str.match(/`(.*)`/) == null ? '' : str.match(/`(.*)`/)[1];
+        }
+
+        // 判断字段类型
+        function getType(type) {
+            if (type.indexOf('int') != -1) {
+                structStr = "int";
+            } else if (type.indexOf('char') != -1) {
+                structStr = "string";
+            } else if (type.indexOf('text') != -1) {
+                structStr = "string";
+            } else if (type.indexOf('date') != -1) {
+                structStr = "time.Time";
+            } else if (type.indexOf('time') != -1) {
+                structStr = "time.Time";
+            } else if (type.indexOf('timestamp') != -1) {
+                structStr = "time.Time";
+            } else if (type.indexOf('year') != -1) {
+                structStr = "time.Time";
+            } else if (type.indexOf('bit') != -1) {
+                structStr = "bool";
+            } else if (type.indexOf('binary') != -1) {
+                structStr = "[]byte";
+            } else if (type.indexOf('blob') != -1) {
+                structStr = "[]byte";
+            } else {
+                structStr = "string";
+            }
+            return structStr
+        }
+
+        // 解析sql语句
+        function parseSql(sql) {
+            // 用换行符分割
+            var sqlArr = sql.split('\n');
+            // 寻找sqlArr[0]中 两个`之间的内容
+            var tableName = getStr(sqlArr[0]);
+
+            if (!tableName) {
+                alert('请输入正确的建表语句');
+                // 清空所有textarea
+                $('textarea').val('');
+                return;
+            }
+
+            // 判断表名是否存在下划线
+            if (tableName.indexOf('_') != -1) {
+                var tableNameArr = tableName.split('_');
+                var tableNameNew = '';
+                for (var i = 0; i < tableNameArr.length; i++) {
+                    if (i == 0) {
+                        tableNameNew += tableNameArr[i];
+                    } else {
+                        tableNameNew += tableNameArr[i].substring(0, 1).toUpperCase() + tableNameArr[i].substring(1);
+                    }
+                }
+                tableName = tableNameNew;
+            }
+            // tableName首字母大写
+            tableName = tableName.substring(0, 1).toUpperCase() + tableName.substring(1);
+
+            // 创建sql对象
+            var sqlObj = {};
+            sqlObj.tableName = tableName;
+            sqlObj.tableComment = sqlArr[sqlArr.length - 1].match(/COMMENT='(.*)'/)[1];
+            sqlObj.tableField = [];
+            // 获取字段
+            var field = sqlArr.slice(1, sqlArr.length - 1);
+            for (var i = 0; i < field.length; i++) {
+                var fieldObj = {};
+                // 去除field[i]两侧的空格
+                field[i] = field[i].trim();
+                // 判断是否以`开头
+                if (field[i].startsWith('`')) {
+                    // 获取字段名
+                    fieldObj.fieldName = getStr(field[i]);
+                    // 获取字段类型
+                    fieldObj.fieldType = field[i].match(/\s(.*)\s/)[1];
+                    // 获取字段注释
+                    fieldObj.fieldComment = field[i].match(/COMMENT\s'(.*)'/) != null ? field[i].match(/COMMENT\s'(.*)'/)[1] : '';
+                    // 获取字段是否为空
+                    fieldObj.fieldNull = field[i].match(/NOT\sNULL/) != null ? field[i].match(/NOT\sNULL/)[0] : '';
+                    // 获取字段是否为主键
+                    fieldObj.fieldKey = field[i].match(/PRIMARY\sKEY/);
+                    // 获取字段是否为自增
+                    fieldObj.fieldAuto = field[i].match(/AUTO_INCREMENT/);
+                    // 获取字段默认值
+                    fieldObj.fieldDefault = field[i].match(/DEFAULT\s'(.*)'/);
+                    if (fieldObj.fieldDefault) {
+                        fieldObj.fieldDefault = fieldObj.fieldDefault[1];
+                    }
+                    // 获取字段长度
+                    fieldObj.fieldLength = field[i].match(/\((.*)\)/);
+                    if (fieldObj.fieldLength) {
+                        fieldObj.fieldLength = fieldObj.fieldLength[1];
+                    }
+                } else {
+                    // 非字段信息
+                    continue;
+                }
+
+                sqlObj.tableField.push(fieldObj);
+            }
+
+            debugger
+            return sqlObj;
+        }
+
+        // 解析sql到带有tag的golang结构体
+        function parseSql2Struct(sql) {
+            var sqlObj = parseSql(sql);
+            var structStr = "type " + sqlObj.tableName + " struct {\n";
+            for (var i = 0; i < sqlObj.tableField.length; i++) {
+                var field = sqlObj.tableField[i];
+                // 字段名, 改成大驼峰
+                var fieldName = field.fieldName.replace(/_(\w)/g, function (all, letter) {
+                    return letter.toUpperCase();
+                });
+                fieldName = fieldName.replace(fieldName[0], fieldName[0].toUpperCase());
+                structStr += "\t" + fieldName + "\t";
+                // 字段类型, 获取第一个空格前的内容
+                structStr += getType(field.fieldType.split(' ')[0]) + "\t";
+                structStr += "`";
+
+                if (tags.indexOf('json') != -1) {
+                    // tag: json
+                    structStr += "json:\"" + field.fieldName + "\"";
+                }
+                if (tags.indexOf('xorm') != -1) {
+                    // tag: xorm
+                    structStr += "xorm:" + "\"" + field.fieldType + "\" ";
+                }
+
+
+                // 删除structStr最后一个空格
+                structStr = structStr.substring(0, structStr.length - 1);
+                // 回车
+                structStr += "`";
+                // 如果tags为空, 则删除最后一个字符
+                if (tags == '') {
+                    structStr = structStr.substring(0, structStr.length - 1);
+                }
+                structStr += "\n";
+            }
+            structStr += "}";
+            return structStr;
+        }
+    })
+</script>
+
+</html>

@@ -1,0 +1,18 @@
+textarea {
+	resize: none;
+}
+
+.main .ss {
+	width: 42%;
+	height: 700px;
+	margin: 40px;
+}
+
+.ss textarea {
+	width: 100%;
+	height: 100%;
+}
+
+.ss .head {
+	height: 50px;
+}
